@@ -157,10 +157,10 @@ class App():
                     partido.mostrar()
                     print("     -----")
                   
-        else:
-            fecha = input("Introduzca la fecha de la cual quiere buscar los partidos (Formato MM/DD/YYYY): ")
+        else:            
             while True:
                 try:
+                    fecha = input("Introduzca la fecha de la cual quiere buscar los partidos (Formato MM/DD/YYYY): ")
                     if len(fecha) > 10:
                         raise Exception
                     if fecha.count("/") != 2:
@@ -168,6 +168,8 @@ class App():
                     for caracter in fecha:
                         if not caracter.isnumeric() and not "/":
                             raise Exception
+                    if fecha[2] != '/' and fecha[5] != '/':
+                        raise Exception
                     break
                 except:
                     print("Error!")
@@ -181,7 +183,7 @@ class App():
                     comprobante = True
             
             if comprobante == False:
-                print("No hay ningún partido en la fecha que suted marcó, por favor intente de nuevo")
+                print("No hay ningún partido en la fecha que usted marcó, por favor intente de nuevo")
 
     def create_code(self):
         """
@@ -196,24 +198,34 @@ class App():
         """
         Registra al cliente y hace que seleccione el ID del partido que quiere comprarle un ticket, hace que seleccione el asiento, y le imprime la factura
         """
-        while True:
-            try:
-                name = input("Introduzca su nombre: ")
-                if not name.isalpha() or name.isspace():
-                    raise Exception
-                cedula = int(input("Ingrese su cédula: "))
-                if cedula <= 0:
-                    raise Exception
-                edad = int(input("Introduzca su edad: "))
-                if edad <= 0 or edad >= 118:
-                    raise Exception
-                tipo_ticket = input("Introduzca el tipo de ticket que desea comprar (1-General   2-VIP): ")
-                if tipo_ticket != '1' and tipo_ticket != '2':
-                    raise Exception
-                break
-            except:
-                print("Error! Intente de nuevo")
         
+        cedula = input("Ingrese su cédula: ")
+        while not cedula.isnumeric() and cedula <= 0:
+            cedula = input("Ingreso inválido, ingrese su número de cédula: ")
+        
+        comprobante_cliente = False
+        for client in self.clientes:
+            if cedula == client.cedula:
+                comprobante_cliente = True
+                cliente = client
+
+        if comprobante_cliente == False:
+            while True:
+                try:
+                    name = input("Introduzca su nombre: ")
+                    if not name.isalpha() or name.isspace():
+                        raise Exception
+                    edad = int(input("Introduzca su edad: "))
+                    if edad <= 0 or edad >= 118:
+                        raise Exception
+                    break
+                except:
+                    print("Error! Intente de nuevo")
+        
+        
+        tipo_ticket = input("Introduzca el tipo de ticket que desea comprar (1-General   2-VIP): ")
+        while tipo_ticket != '1' and tipo_ticket != '2':
+            tipo_ticket = input("Ingreso Inválido, introduzca el tipo de ticket que desea comprar (1-General  2-VIP)")
 
         self.show_matches()
         option = input("Seleccione el Id del partido al que desea comprarle la entrada: ")
@@ -250,12 +262,9 @@ class App():
         elif tipo_ticket == '2':
             ticket = TicketVIP(codigo_ticket, option, asiento, False)
         
-        comprobante_cliente = False
-        for cliente in self.clientes:
-            if cedula == cliente.cedula:
-                comprobante_cliente = True
-                cliente.tickets.append(ticket)
-                cliente.crear_factura()
+        if comprobante_cliente == True:
+            cliente.tickets.append(ticket)
+            cliente.crear_factura()
         
         if comprobante_cliente == False:
             cliente = Cliente(name, cedula, edad)
@@ -390,18 +399,20 @@ class App():
     
     def restaurant_management(self):
         es_vip = False
-        for i, cliente in enumerate(self.clientes):
-            print(f"\t{i + 1}")
-            cliente.mostrar()
+        cliente_existe = False
         while True:
             try:                
-                option = int(input("Introduzca el número del cliente que está ingresando actualmente a la base de datos: "))
-                if option not in range(1, len(self.clientes) +1):
-                    raise Exception
-                cliente = self.clientes[option -1]
+                option = int(input("Introduzca su número de cédula: "))
+                for cliente in self.clientes:
+                    if cliente.cedula == option:
+                        cliente_existe = True
+                if cliente_existe:
+                    cliente = self.clientes[option -1]
+                else:
+                    raise Exception                
                 break
             except:
-                print("Error!")
+                print("Error! Introdujo un número inválido o la cédula que introdujo no se encuentra en nuestra base de datos")
 
         for ticket in cliente.tickets:
             if ticket.tipo_ticket == "Ticket VIP":
@@ -462,18 +473,20 @@ class App():
             
     def buy_restaurant(self):
         es_vip = False
-        for i, cliente in enumerate(self.clientes):
-            print(f"\t{i + 1}")
-            cliente.mostrar()
+        cliente_existe = False
         while True:
             try:                
-                option = int(input("Introduzca el número del cliente que está ingresando actualmente a la base de datos: "))
-                if option not in range(1, len(self.clientes) +1):
-                    raise Exception
-                cliente = self.clientes[option -1]
+                option = int(input("Introduzca su número de cédula: "))
+                for cliente in self.clientes:
+                    if cliente.cedula == option:
+                        cliente_existe = True
+                if cliente_existe:
+                    cliente = self.clientes[option -1]
+                else:
+                    raise Exception                
                 break
             except:
-                print("Error!")
+                print("Error! Introdujo un número inválido o la cédula que introdujo no se encuentra en nuestra base de datos")
 
         for ticket in cliente.tickets:
             if ticket.tipo_ticket == "Ticket VIP":

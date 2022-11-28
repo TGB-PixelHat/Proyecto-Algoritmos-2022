@@ -7,6 +7,9 @@ class Ticket():
         self.asistencia = asistencia
     
     def mostrar(self):
+        """
+        Muestra los atributos del Ticket
+        """
         print(f"""
         Código Ticket: {self.codigo_ticket}
         Tipo de Ticket: {self.tipo_ticket}

@@ -5,7 +5,10 @@ class TicketGeneral(Ticket):
         self.precio = 50
         super().__init__(codigo_ticket, "Ticket General", id_partido, asiento, asistencia)
 
-def mostrar(self):
+    def mostrar(self):
+        """
+        Muestra los atributos del Ticket General
+        """
         print(f"""
         Código Ticket: {self.codigo_ticket}
         Tipo de Ticket: {self.tipo_ticket}

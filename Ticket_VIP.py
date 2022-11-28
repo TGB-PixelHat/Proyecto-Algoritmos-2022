@@ -5,7 +5,10 @@ class TicketVIP(Ticket):
         self.precio = 120
         super().__init__(codigo_ticket, "Ticket VIP", id_partido, asiento, asistencia)
 
-def mostrar(self):
+    def mostrar(self):
+        """
+        Muestra los atributos del Ticket VIP
+        """
         print(f"""
         Código Ticket: {self.codigo_ticket}
         Tipo de Ticket: {self.tipo_ticket}

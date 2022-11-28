@@ -4,11 +4,11 @@ class Restaurante():
         self.id_estadio = id_estadio
         self.productos = []
 
-    def mostrar_todo(self):
+    def mostrar(self):
+        """
+        Muestra los atributos del restaurante
+        """
         print(f"""
         Nombre del restaurante: {self.nombre}
-        ID del estadio: {self.id_estadio}
-        Productos: """)
-        for producto in self.productos:
-            producto.mostrar()
+        ID del estadio: {self.id_estadio}""")
     

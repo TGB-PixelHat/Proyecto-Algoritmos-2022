@@ -10,6 +10,8 @@ from Alimento import Alimento
 from Ticket_general import TicketGeneral
 from Ticket_VIP import TicketVIP
 import random
+import pickle
+import os
 
 class App():
     def __init__(self):
@@ -37,11 +39,17 @@ class App():
             2.No
             > """)
         if opcion == '1':
+            self.equipos.clear()
+            self.estadios.clear()
+            self.partidos.clear()
+            self.clientes.clear()
+            self.codigos_usados.clear()
+            self.codigos_ticket.clear()
             #Descarga los datos de los equipos
             var = requests.get("https://raw.githubusercontent.com/Algoritmos-y-Programacion-2223-1/api-proyecto/main/teams.json")
             equipos = var.json()
             for team in equipos:
-                team = Equipo(team['name'], team["fifa_code"], team['group'] )
+                team = Equipo(team['name'], team["fifa_code"], team['group'], team['flag'], team['id'])
                 self.equipos.append(team)
 
             #Descarga los estadios, restaurantes y productos del restaurante
@@ -56,9 +64,9 @@ class App():
                     estadio.restaurantes.append(restaurante)
                     for product in edificio["products"]:
                         if product["type"] == 'food':
-                            producto = Alimento(product["name"], product["price"], product["type"], product["adicional"])
+                            producto = Alimento(product["name"], product["quantity"], product["price"], product["type"], product["adicional"])
                         elif product["type"] == 'beverages':
-                            producto = Bebida(product["name"], product["price"], product["type"], product["adicional"])
+                            producto = Bebida(product["name"], product["quantity"], product["price"], product["type"], product["adicional"])
                         restaurante.productos.append(producto)
 
             #Descarga los partidos
@@ -86,6 +94,7 @@ class App():
         for i, equipo in enumerate(self.equipos):
             print(str(i+1) + "-")
             equipo.mostrar()
+            print()
     
     def show_stadiums(self):
         """
@@ -94,6 +103,7 @@ class App():
         for estadio in self.estadios:
             print()
             estadio.mostrar()
+            print()
     
     def show_matches(self):
         """
@@ -102,6 +112,7 @@ class App():
         for partido in self.partidos:
             print()
             partido.mostrar()
+            print()
 
     def search_match(self):
         """
@@ -134,9 +145,7 @@ class App():
             for partido in self.partidos:
                 if partido.equipo_local.fifa_code == pais or partido.equipo_visitante.fifa_code == pais:
                     comprobante = True
-                    print("     ------")
                     partido.mostrar()
-                    print("     ------")
             if comprobante == False:
                 print("El código que introdujo no está en la lista de partidos, intente de nuevo")
 
@@ -153,14 +162,13 @@ class App():
 
             for partido in self.partidos:
                 if partido.estadio.id == estadio:
-                    print("     -----")
                     partido.mostrar()
-                    print("     -----")
                   
         else:            
             while True:
                 try:
-                    fecha = input("Introduzca la fecha de la cual quiere buscar los partidos (Formato MM/DD/YYYY): ")
+                    fecha = input("""Introduzca la fecha de la cual quiere buscar los partidos
+                    (Formato MM/DD/YYYY si un día tiene 1 solo dígito copie sólo ese dígito sin un 0 en frente): """)
                     if len(fecha) > 10:
                         raise Exception
                     if fecha.count("/") != 2:
@@ -177,9 +185,7 @@ class App():
             comprobante = False
             for partido in self.partidos:
                 if fecha in partido.fecha_y_hora:
-                    print("     -----")
                     partido.mostrar()
-                    print("     -----")
                     comprobante = True
             
             if comprobante == False:
@@ -187,7 +193,8 @@ class App():
 
     def create_code(self):
         """
-        Genera un código al azar para el ticket, si el código del Ticket ya existe lo hace de nuevo, retorna el código generado
+        Genera un código al azar para el ticket, si el código del Ticket ya existe lo hace de nuevo
+        Retorna: Código generado
         """
         codigo_ticket = random.randint(1000000, 9999999)
         while codigo_ticket in self.codigos_ticket:            
@@ -196,12 +203,20 @@ class App():
 
     def buy_tickets(self):
         """
-        Registra al cliente y hace que seleccione el ID del partido que quiere comprarle un ticket, hace que seleccione el asiento, y le imprime la factura
+        Registra al cliente y hace que seleccione el ID del partido que quiere comprarle un ticket
+        Después se selecciona el tipo de Ticket que quiere comprar junto con el asiento que va a ocupar
+        Se calcula la factura y se enseña, preguntando por confirmación del pago
+        Si el pago se confirma, se le añade la factura al cliente, si se cancela no se le añade y se cancela todo lo hecho anteriormente
         """
         
-        cedula = input("Ingrese su cédula: ")
-        while not cedula.isnumeric() and cedula <= 0:
-            cedula = input("Ingreso inválido, ingrese su número de cédula: ")
+        while True:
+            try:
+                cedula = int(input("Ingrese su cédula: "))
+                if cedula <= 0:
+                    raise Exception
+                break
+            except:
+                print("Error!")
         
         comprobante_cliente = False
         for client in self.clientes:
@@ -212,41 +227,57 @@ class App():
         if comprobante_cliente == False:
             while True:
                 try:
-                    name = input("Introduzca su nombre: ")
+                    name = input("Introduzca su nombre: ").title()
                     if not name.isalpha() or name.isspace():
                         raise Exception
                     edad = int(input("Introduzca su edad: "))
-                    if edad <= 0 or edad >= 118:
+                    if edad <= 5 or edad >= 118:
                         raise Exception
                     break
                 except:
                     print("Error! Intente de nuevo")
         
-        
-        tipo_ticket = input("Introduzca el tipo de ticket que desea comprar (1-General   2-VIP): ")
-        while tipo_ticket != '1' and tipo_ticket != '2':
-            tipo_ticket = input("Ingreso Inválido, introduzca el tipo de ticket que desea comprar (1-General  2-VIP)")
-
         self.show_matches()
-        option = input("Seleccione el Id del partido al que desea comprarle la entrada: ")
-        while not option.isnumeric() and option not in range(1, len(self.partidos) + 1):
-            option = input("Ingreso Inválido, seleccione el ID del partido al que desea comprarle el boleto: ")
-        
-        for partido in self.partidos:
-            if option == partido.id:
-                estadio = partido
-                estadio.mapa()
         while True:
             try:
-                asiento = input("Introduzca el número de asiento en el que quiere sentarse (Formato: NN-NN): ")
+                option = int(input("Seleccione el Id del partido al que desea comprarle la entrada: "))
+                if option not in range(1, len(self.partidos) + 1):
+                    print("Ingreso Inválido")
+                    raise Exception
+                
+                for match in self.partidos:
+                    if str(option) == match.id:
+                        partido = match
+
+                tipo_ticket = input("Introduzca el tipo de ticket que desea comprar (1-General   2-VIP): ")
+                if tipo_ticket != '1' and tipo_ticket != '2':
+                    print("Ingreso Inválido")
+                    raise Exception
+                
+                if partido.general_comprados == partido.estadio.capacidad[0] and tipo_ticket == '1':
+                    print("Ya se alcanzó el límite de Tickets generales para este partido, intente en otro partido u otro tipo de ticket")
+                    raise Exception
+                if partido.vip_comprados == partido.estadio.capacidad[1] and tipo_ticket == '2':
+                    print("Ya se alcanzó el límite de Ticket VIP para este partido, intente en otro partido u otro tipo de ticket")
+                    raise Exception
+                break
+            except:
+                print("")
+                       
+        
+        partido.mapa()
+
+        while True:
+            try:
+                asiento = input("Introduzca el número de asiento en el que quiere sentarse (Formato: N-N): ")
                 comprobante = False
                 for caracter in asiento:
                     if not caracter.isnumeric() and not "-":
                         raise Exception
-                for fila in estadio.asientos:
+                for fila in partido.asientos:
                     if asiento in fila:
                         comprobante = True
-                if asiento in estadio.asientos_tomados:
+                if asiento in partido.asientos_tomados:
                     raise Exception
                 if comprobante == False:
                     raise Exception
@@ -254,7 +285,7 @@ class App():
             except:
                 print("Error! Intente de nuevo")
         
-        estadio.asientos.clear()
+        partido.asientos.clear()
 
         codigo_ticket = self.create_code()
         if tipo_ticket == '1':
@@ -264,12 +295,12 @@ class App():
         
         if comprobante_cliente == True:
             cliente.tickets.append(ticket)
-            cliente.crear_factura()
+            factura = cliente.crear_factura(ticket)
         
         if comprobante_cliente == False:
             cliente = Cliente(name, cedula, edad)
             cliente.tickets.append(ticket)
-            cliente.crear_factura()
+            factura = cliente.crear_factura(ticket)
 
         continuar = input("Desea continuar con el pago? 1.Si  2.No: ")
         while continuar != '1' and continuar != '2':
@@ -278,9 +309,15 @@ class App():
         if continuar == '1':
             if comprobante_cliente == False:
                 self.clientes.append(cliente)
-            estadio.asientos_tomados.append(asiento)
+            partido.asientos_tomados.append(asiento)
             self.codigos_ticket.append(codigo_ticket)
+            cliente.facturas.append(factura)
             cliente.mostrar()
+            print("\Pago realizado exitosamente!")
+            if tipo_ticket == '1':
+                partido.general_comprados += 1
+            elif tipo_ticket == '2':
+                partido.vip_comprados += 1
         
         else:
             if comprobante_cliente == True:
@@ -298,47 +335,56 @@ class App():
         """
         Registra la asistencia de un ticket a un partido
         """
-        for i, cliente in enumerate(self.clientes):
-            print(f"\t{i + 1}")
-            cliente.mostrar()
-        while True:
-            try:                
-                option = int(input("Introduzca el número del cliente que desea confirmar la asistencia: "))
-                if option not in range(1, len(self.clientes) +1):
-                    raise Exception
-                cliente = self.clientes[option -1]
-                break
-            except:
-                print("Error!")
-        for i, ticket in enumerate(cliente.tickets):
-            print(f"\t{i +1}")
-            ticket.mostrar()
-        while True:
-            try:
-                asistencia = int(input("Ingrese el número del ticket al que desea confirmar la asistencia: "))
-                if asistencia not in range(1, len(cliente.tickets) +1):
-                    raise Exception
-                ticket = cliente.tickets[asistencia -1]
-                break
-            except:
-                print("Error!")
-        
-        if ticket.codigo_ticket in self.codigos_usados:
-            print("Este Ticket ya ha sido registrado previamente, intente con otro ticket")
-        elif ticket.codigo_ticket in self.codigos_ticket:
-            if ticket.asistencia == False:
-                ticket.asistencia = True
-                for partido in self.partidos:
-                    if ticket.id_partido == partido.id:
-                        partido.asistencia.append(ticket)
-                        self.codigos_usados.append(ticket.codigo_ticket)
-                        print("Asistencia Registrada exitosamente!")
+        if len(self.clientes) == 0:
+            print("No hay clientes registrados para realizar esta acción")
         else:
-            print("El código de este ticket no se encuentra en nuestra base de datos")
+            for i, cliente in enumerate(self.clientes):
+                print(f"\t{i + 1}")
+                print(f"""
+                Nombre: {cliente.nombre}
+                Cédula: {cliente.cedula}""")
+            while True:
+                try:                
+                    option = int(input("Introduzca el número del cliente que desea confirmar la asistencia: "))
+                    if option not in range(1, len(self.clientes) +1):
+                        raise Exception
+                    cliente = self.clientes[option -1]
+                    break
+                except:
+                    print("Error!")
+            for i, ticket in enumerate(cliente.tickets):
+                print(f"\t{i +1}")
+                ticket.mostrar()
+            while True:
+                try:
+                    asistencia = int(input("Ingrese el número del ticket al que desea confirmar la asistencia: "))
+                    if asistencia not in range(1, len(cliente.tickets) +1):
+                        raise Exception
+                    ticket = cliente.tickets[asistencia -1]
+                    break
+                except:
+                    print("Error!")
+            
+            if ticket.codigo_ticket in self.codigos_usados:
+                print("Este Ticket ya ha sido registrado previamente, intente con otro ticket")
+            elif ticket.codigo_ticket in self.codigos_ticket:
+                if ticket.asistencia == False:
+                    ticket.asistencia = True
+                    for partido in self.partidos:
+                        if int(ticket.id_partido) == int(partido.id):
+                            partido.asistencia.append(cliente)
+                            self.codigos_usados.append(ticket.codigo_ticket)
+                            print("Asistencia Registrada exitosamente!")
+                else:
+                    print("Este Ticket ya ha sido registrado previamente, intente con otro ticket")
+            else:
+                print("El código de este ticket no se encuentra en nuestra base de datos")
 
     def busqueda_producto_nombre(self, restaurante):
         """
         Busca los productos del restaurante y los muestra a partir del Nombre (Cliente debe saber el nombre del producto antes)
+
+        Recibe: El objeto de restaurante al que se le va a realizar la acción
         """
         lista_productos = []
         for producto in restaurante.productos:
@@ -360,6 +406,8 @@ class App():
     def busqueda_producto_tipo(self, restaurante):
         """
         Busca los productos del restaurante y los muestra dependiendo de su tipo (Bebida o Alimento)
+
+        Recibe: El objeto Restaurante al que se le quiere realizar la acción
         """
         tipo_mostrar = input("""
         Ingrese el número correspondiente al tipo de producto que desea buscar:
@@ -381,6 +429,8 @@ class App():
     def busqueda_producto_rango_precio(self,restaurante):
         """
         Busca los productos del restaurante y los muestra dependiendo de un rango de precio 
+        
+        Recibe: El objeto del restaurante al que se quiere realizar la acción
         """
         while True:
             try:
@@ -393,96 +443,251 @@ class App():
                 break
             except:
                 print("Error!")
+
+        comprobante = False
         for producto in restaurante.productos:
             if producto.precio in range(x, y+1):
                 producto.mostrar()
+                comprobante = True
+
+        if comprobante == False:
+            print("\t No existen productos en el rango de precio indicado")
     
     def restaurant_management(self):
-        es_vip = False
-        cliente_existe = False
-        while True:
-            try:                
-                option = int(input("Introduzca su número de cédula: "))
-                for cliente in self.clientes:
-                    if cliente.cedula == option:
-                        cliente_existe = True
-                if cliente_existe:
-                    cliente = self.clientes[option -1]
-                else:
-                    raise Exception                
-                break
-            except:
-                print("Error! Introdujo un número inválido o la cédula que introdujo no se encuentra en nuestra base de datos")
-
-        for ticket in cliente.tickets:
-            if ticket.tipo_ticket == "Ticket VIP":
-                es_vip = True
-        if es_vip == False:
-            print("No es usuario VIP de ninguno de los Tickets que ha comprado, por lo que no puede ver los productos de los restaurantes.")
-        
-        elif es_vip == True:
-            for i, ticket in enumerate(cliente.tickets):
-                if ticket.tipo_ticket == "Ticket VIP":
-                    print(f"\t{i+1}")
-                    ticket.mostrar()
-
-                    while True:
-                        try:
-                            seleccion_ticket = int(input("Seleccione el número del Ticket VIP al cual desea ver el restaurante de su estadio: "))
-                            if seleccion_ticket not in range(1, len(cliente.tickets) + 1):
-                                raise Exception
-                            ticket = cliente.tickets[seleccion_ticket - 1]
-                            break
-                        except:
-                            print("Error!")
-                    
-            for partido in self.partidos:
-                if ticket.id_partido == partido.id:
-                    estadio = partido.estadio
-            
-            for i, restaurante in enumerate(estadio.restaurantes):
-                print(f"\t{i+1}")
-                print(f"\t{restaurante.nombre}")
-            
+        """
+        Revisa si el cliente que entró existe, si posee algún ticket VIP y que de ese ticket VIP a cuál restaurante quiere verle la estadística
+        """
+        if len(self.clientes) == 0:
+            print("No hay clientes registrados para realizar esta acción")
+        else:
+            es_vip = False
+            cliente_existe = False
             while True:
-                try:
-                    seleccion_restaurante = int(input("Seleccione el Restaurante al que quiere ver los productos: "))
-                    if seleccion_restaurante not in range(1, len(estadio.restaurantes) +1):
-                        raise Exception
-                    restaurante = estadio.restaurantes[seleccion_restaurante -1]                            
+                try:                
+                    option = int(input("Introduzca su número de cédula: "))
+                    for user in self.clientes:
+                        if user.cedula == option:
+                            cliente_existe = True
+                            cliente = user
+                    
+                    if cliente_existe == False:
+                        raise Exception                
                     break
                 except:
-                    print("Error!")
+                    print("Error! Introdujo un número inválido o la cédula que introdujo no se encuentra en nuestra base de datos")
+
+            for ticket in cliente.tickets:
+                if ticket.tipo_ticket == "Ticket VIP":
+                    es_vip = True
+            if es_vip == False:
+                print("No es usuario VIP de ninguno de los Tickets que ha comprado, por lo que no puede ver los productos de los restaurantes.")
             
-            tipo_busqueda = input("""
-                    Ingrese el número correspondiente al tipo de búsqueda de productos que desea realizar en este restaurante:
-                    1.Búsqueda por Nombre
-                    2.Búsqueda por tipo
-                    3.Búsqueda por rango de precio
-                    > """)
-            
-            while tipo_busqueda != '1' and tipo_busqueda != '2' and tipo_busqueda != '3':
-                tipo_busqueda = input("Ingreso Inválido, ingrese el número correspondiente al tipo de búsqueda que desea realizar: ")
-            
-            if tipo_busqueda == '1':
-                self.busqueda_producto_nombre(restaurante)
-            elif tipo_busqueda == '2':
-                self.busqueda_producto_tipo(restaurante)
-            else:
-                self.busqueda_producto_rango_precio(restaurante)
-            
+            elif es_vip == True:
+                for i, ticket in enumerate(cliente.tickets):
+                    if ticket.tipo_ticket == "Ticket VIP":
+                        print(f"\t{i+1}")
+                        ticket.mostrar()
+                        print()
+
+                while True:
+                    try:
+                        seleccion_ticket = int(input("Seleccione el número del Ticket VIP al cual desea ver el restaurante de su estadio: "))
+                        if seleccion_ticket not in range(1, len(cliente.tickets) + 1):
+                            raise Exception
+                        if cliente.tickets[seleccion_ticket -1].tipo_ticket != "Ticket VIP":
+                            raise Exception
+                        ticket = cliente.tickets[seleccion_ticket - 1]
+                        break
+                    except:
+                        print("Error!")
+                        
+                for partido in self.partidos:
+                    if ticket.id_partido == int(partido.id):
+                        estadio = partido.estadio
+                
+                for i, restaurante in enumerate(estadio.restaurantes):
+                    print(f"\t{i+1}")
+                    print(f"\t{restaurante.nombre}")
+                
+                while True:
+                    try:
+                        seleccion_restaurante = int(input("Seleccione el Restaurante al que quiere ver los productos: "))
+                        if seleccion_restaurante not in range(1, len(estadio.restaurantes) +1):
+                            raise Exception
+                        restaurante = estadio.restaurantes[seleccion_restaurante -1]                            
+                        break
+                    except:
+                        print("Error!")
+                
+                tipo_busqueda = input("""
+                        Ingrese el número correspondiente al tipo de búsqueda de productos que desea realizar en este restaurante:
+                        1.Búsqueda por Nombre
+                        2.Búsqueda por tipo
+                        3.Búsqueda por rango de precio
+                        > """)
+                
+                while tipo_busqueda != '1' and tipo_busqueda != '2' and tipo_busqueda != '3':
+                    tipo_busqueda = input("Ingreso Inválido, ingrese el número correspondiente al tipo de búsqueda que desea realizar: ")
+                
+                if tipo_busqueda == '1':
+                    self.busqueda_producto_nombre(restaurante)
+                elif tipo_busqueda == '2':
+                    self.busqueda_producto_tipo(restaurante)
+                else:
+                    self.busqueda_producto_rango_precio(restaurante)
+                
     def buy_restaurant(self):
+        """
+        Revisa si el cliente que entró existe, si posee algún ticket VIP y que de ese ticket VIP de cuál restaurante quiere comprar
+        Va comprando los productos y cantidades de dicho restándole al stock del producto, después se confirma si quiere realizar el pago
+        Si dice que no se revierten los cambios, si dice que si se crea la factura
+        """
+        es_vip = False
+        cliente_existe = False
+        if len(self.clientes) == 0:
+            print("No hay clientes registrados que puedan comprar")
+        else:
+            while True:
+                try:                
+                    option = int(input("Introduzca su número de cédula: "))
+                    for user in self.clientes:
+                        if user.cedula == option:
+                            cliente_existe = True
+                            cliente = user
+                    
+                    if cliente_existe == False:
+                        raise Exception                
+                    break
+                except:
+                    print("Error! Introdujo un número inválido o la cédula que introdujo no se encuentra en nuestra base de datos")
+
+            for ticket in cliente.tickets:
+                if ticket.tipo_ticket == "Ticket VIP":
+                    es_vip = True
+            if es_vip == False:
+                print("No es usuario VIP de ninguno de los Tickets que ha comprado, por lo que no puede ver los productos de los restaurantes.")
+            
+            elif es_vip == True:
+                for i, ticket in enumerate(cliente.tickets):
+                    if ticket.tipo_ticket == "Ticket VIP":
+                        print(f"\t{i+1}")
+                        ticket.mostrar()
+                        print()
+
+                while True:
+                    try:
+                        seleccion_ticket = int(input("Seleccione el número del Ticket VIP al cual desea ver el restaurante de su estadio: "))
+                        if seleccion_ticket not in range(1, len(cliente.tickets) + 1):
+                            raise Exception
+                        if cliente.tickets[seleccion_ticket -1].tipo_ticket != "Ticket VIP":
+                            raise Exception
+                        ticket = cliente.tickets[seleccion_ticket - 1]
+                        break
+                    except:
+                        print("Error!")
+                        
+                for partido in self.partidos:
+                    if ticket.id_partido == int(partido.id):
+                        estadio = partido.estadio
+                
+                for i, restaurante in enumerate(estadio.restaurantes):
+                    print(f"\t{i+1}")
+                    print(f"\t{restaurante.nombre}")
+                    print()
+                
+                while True:
+                    try:
+                        seleccion_restaurante = int(input("Seleccione el Restaurante en el que quiere comprar: "))
+                        if seleccion_restaurante not in range(1, len(estadio.restaurantes) +1):
+                            raise Exception
+                        restaurante = estadio.restaurantes[seleccion_restaurante -1]                            
+                        break
+                    except:
+                        print("Error!")
+                
+                for i, producto in enumerate(restaurante.productos):
+                    print(f"\t {i+1}")
+                    producto.mostrar()
+                    print("")
+                
+                productos_comprados = []
+
+                while True:
+                    while True:
+                        try:
+                            id = int(input("Introduzca el número del producto que desea comprar: "))
+                            if id not in range(1, len(restaurante.productos) +1):
+                                print("Error!")
+                                raise Exception
+                            if cliente.edad < 18 and restaurante.productos[id-1].adicional == 'alcoholic':
+                                print("Eres menor de edad, por lo tanto no puedes pedir bebidas alcohólicas")
+                                raise Exception
+                            producto = restaurante.productos[id -1]
+
+                            cantidad = int(input("Introduzca la cantidad que quiere comprar de este producto: "))
+                            if cantidad <= 0 or producto.cantidad < cantidad:
+                                print("Error!")
+                                raise Exception
+                            break
+                        except:
+                            print("")
+
+                    comprobante_producto = False
+                    for item in productos_comprados:
+                        if producto.nombre == item["producto"].nombre:
+                            item["cantidad"] += cantidad
+                            producto.cantidad -= cantidad
+                            producto.vendido += cantidad
+                            comprobante_producto = True
+
+                    if comprobante_producto == False:
+                        productos_comprados.append({
+                            "producto": producto,
+                            "cantidad": cantidad
+                        })
+                        producto.cantidad -= cantidad
+                        producto.vendido += cantidad
+                    
+                    detener = input("Desea comprar otro producto? (1.Si  2.No): ")
+                    while detener != '1' and detener != '2':
+                        detener = input("Ingreso Inválido, desea comprar otro producto? (1.Si  2.No): ")
+
+                    if detener == '2':
+                        break
+                
+                factura = cliente.crear_factura_restaurante(ticket, productos_comprados)
+                
+                confirmar = input("Desea confirmar su compra? (1.Si  2.No): ")
+                while confirmar != '1' and confirmar != '2':
+                    confirmar = input("Ingreso Inválido. Desea confirmar su compra? (1.Si  2.No): ")
+                
+                if confirmar == '1':
+                    cliente.facturas.append(factura)
+                    print("Pago realizado exitosamente!")
+                else:
+                    for item in productos_comprados:
+                        for producto in restaurante.productos:
+                            if item["producto"].nombre == producto.nombre:
+                                producto.cantidad += item["cantidad"]
+                                producto.vendido -= item["cantidad"]
+                    print("Pago cancelado exitosamente")
+
+    def gasto_promedio(self):
+        """
+        Determina primero cual es el cliente al que se le quiere realizar la estadística y si el cliente es vip
+        Una vez determinado calcula el promedio gastado en un partido en específico mediante el uso del ticket
+        """
         es_vip = False
         cliente_existe = False
         while True:
             try:                
-                option = int(input("Introduzca su número de cédula: "))
-                for cliente in self.clientes:
-                    if cliente.cedula == option:
+                option = int(input("Introduzca el número de cédula del Cliente VIP del que quiere ver el gasto promedio: "))
+                for user in self.clientes:
+                    if user.cedula == option:
                         cliente_existe = True
-                if cliente_existe:
-                    cliente = self.clientes[option -1]
-                else:
+                        cliente = user
+                
+                if cliente_existe == False:
                     raise Exception                
                 break
             except:
@@ -492,45 +697,286 @@ class App():
             if ticket.tipo_ticket == "Ticket VIP":
                 es_vip = True
         if es_vip == False:
-            print("No es usuario VIP de ninguno de los Tickets que ha comprado, por lo que no puede ver los productos de los restaurantes.")
+            print("El cliente que seleccionó no es cliente VIP en ninguno de los partidos del mundial.")
         
-        elif es_vip == True:
-            for i, ticket in enumerate(cliente.tickets):
+        for i, ticket in enumerate(cliente.tickets):
                 if ticket.tipo_ticket == "Ticket VIP":
                     print(f"\t{i+1}")
                     ticket.mostrar()
+                    print()
 
-                    while True:
-                        try:
-                            seleccion_ticket = int(input("Seleccione el número del Ticket VIP al cual desea ver el restaurante de su estadio: "))
-                            if seleccion_ticket not in range(1, len(cliente.tickets) + 1):
-                                raise Exception
-                            ticket = cliente.tickets[seleccion_ticket - 1]
-                            break
-                        except:
-                            print("Error!")
-                    
-            for partido in self.partidos:
-                if ticket.id_partido == partido.id:
-                    estadio = partido.estadio
+        while True:
+            try:
+                seleccion_ticket = int(input("Seleccione el número del Ticket VIP al cual desea ver el gasto promedio: "))
+                if seleccion_ticket not in range(1, len(cliente.tickets) + 1):
+                    raise Exception
+                if cliente.tickets[seleccion_ticket -1].tipo_ticket != "Ticket VIP":
+                    raise Exception
+                ticket = cliente.tickets[seleccion_ticket - 1]
+                break
+            except:
+                print("Error!")
+        
+        contador = 0
+        sumatoria_total = 0
+        promedio_gastado = 0
+        for factura in cliente.facturas:
+            if factura.id_partido == ticket.id_partido:
+                sumatoria_total += factura.total
+                contador += 1
+        
+        promedio_gastado = sumatoria_total / contador
+
+        print(f"""
+        El cliente de nombre: {cliente.nombre}
+        Tuvo un gasto promedio de: {promedio_gastado}$
+        En el partido de Id: {ticket.id_partido}""")
+
+    def ordenar_asistencia(self, partido):
+        """
+        Ordena los partidos según su asistencia
+        
+        Recibe: El objeto partido
+
+        Retorna: La longitud de la lista de asistencia del objeto partido
             
-            for i, restaurante in enumerate(estadio.restaurantes):
+        """
+        return len(partido.asistencia)
+
+    def tabla_asistencia(self):
+        """
+        Muestra por orden de mayor a menor los datos de los partidos con mayor y menor asistencia
+        """
+        partidos = []
+        for partido in self.partidos:
+            partidos.append(partido)
+
+        partidos.sort(reverse = True, key=self.ordenar_asistencia)
+
+        for partido in partidos:
+            partido.mostrar()
+            print(f"\tCantida de tickets comprados: {len(partido.asientos_tomados)}")
+            print(f"\tPersonas que Asistieron: ")
+            if len(partido.asistencia) != 0:
+                for persona in partido.asistencia:
+                    print(f"""
+                        Nombre: {persona.nombre}
+                        Cédula:{persona.cedula}""")
+            else:
+                print("""
+                        Ninguna""")
+
+    def partido_mayor_asistencia(self):
+        """
+        Itera sobre la lista de self.partidos para determinar cuál fue el partido con mayor asistencia
+        Al finalizar muestra los datos del partido que obtuvo mayor asistencia
+        """
+        mayor_asistencia = self.partidos[0]
+        for partido in self.partidos:
+            if len(partido.asistencia) > len(mayor_asistencia.asistencia):
+                mayor_asistencia = partido
+        
+        if len(mayor_asistencia.asistencia) != 0:
+            print("\tEl partido que tuvo la mayor asistencia fue: ")
+            mayor_asistencia.mostrar()
+        else:
+            print("\tNo ha habido asistencia en ninguno de los partidos para poder realizar esta estadística")
+
+    def partido_boletos_vendidos(self):
+        """
+        Itera sobre la lista de self.partidos para determinar cuál tuvo la mayor cantidad de boletos vendidos
+        Al finalizar muestra los datos del partido que vendió más boletos
+        """
+        mayor_boletos = self.partidos[0]
+        for partido in self.partidos:
+            if len(partido.asientos_tomados) > len(mayor_boletos.asientos_tomados):
+                mayor_boletos = partido
+        
+        if len(mayor_boletos.asientos_tomados) != 0:
+            print("\tEl partido que vendió la mayor cantidad de boletos fue: ")
+            mayor_boletos.mostrar()
+        else:
+            print("\tNo se han vendido boletos en los partidos todavía para hacer esta estadística")
+
+    def top_productos(self):
+        """
+        Calcula y enseña los 3 productos que fueron más vendidos en el restaurante que el cliente quiera escoger
+        """
+        top = []
+        self.show_stadiums()
+
+        while True:
+            try:
+                option = int(input("Seleccione el Id del estadio al que quiere acceder para la estadística: "))
+                if option not in range(1, len(self.estadios) + 1 ):
+                    raise Exception    
+                for stadium in self.estadios:
+                    if option == stadium.id:
+                        estadio = stadium
+                break
+            except:
+                print("Error!")
+        
+        for i, restaurante in enumerate(estadio.restaurantes):
+            print(f"\t {i+1}")
+            print(f"\t {restaurante.nombre}")
+
+        while True:
+            try:
+                option = int(input("Seleccione el número correspondiente al Restaurante al que quiere acceder: "))
+                if option not in range(1, len(estadio.restaurantes) +1):
+                    raise Exception
+                restaurante = estadio.restaurantes[option -1]
+                break
+            except:
+                print("Error!")
+        
+        for producto in restaurante.productos:
+            if len(top) < 3 and producto.vendido != 0:
+                top.append(producto)
+            elif len(top) == 3:
+                for item in top:
+                    if producto.vendido > item.vendido:
+                        item = producto
+        
+        if len(top) != 0:
+            for i, producto in enumerate(top):
+                print("\tEstos son el top de productos vendidos: ")
                 print(f"\t{i+1}")
-                print(f"\t{restaurante.nombre}")
-            
-            while True:
-                try:
-                    seleccion_restaurante = int(input("Seleccione el Restaurante en el que quiere comprar: "))
-                    if seleccion_restaurante not in range(1, len(estadio.restaurantes) +1):
-                        raise Exception
-                    restaurante = estadio.restaurantes[seleccion_restaurante -1]                            
-                    break
-                except:
-                    print("Error!")
-            
-            
+                print(f"""
+                Nombre del producto: {producto.nombre}
+                Cantidad vendida: {producto.vendido}""")
+        else:
+            print("No hay productos vendidos con los cuales hacer esta estadística")
 
-    def start(self):
+    def top_clientes(self):
+        """
+        Calcula y muestra los 3 clientes que compraron más tickets de la base de datos
+        En caso de haber menos de 3 clientes sólo muestra los clientes que hay (1 o 2 clientes)
+        """
+        top = []
+
+        for cliente in self.clientes:
+            if len(top) < 3 and len(cliente.tickets) > 0:
+                top.append(cliente)
+            elif len(top) == 3:
+                for customer in top:
+                    if len(cliente.tickets) > len(customer.tickets):
+                        customer = cliente
+        
+        if len(top) != 0:
+            for i, cliente in enumerate(top):
+                print("\tEstos son el top de clientes que compraron más boletos: ")
+                print(f"\t{i+1}")
+                print(f"""
+            Nombre: {cliente.nombre}
+            Cedula: {cliente.cedula}""")
+        else:
+            print("No hay clientes con los cuales hacer esta estadística")
+
+    def stats(self):
+        """
+        Menú de estadísticas
+        """
+        option = input("""
+        Bienvenido al menú de estadísticas, selecciona el número correspondiente a la estadística que deseas ver:
+        1-Gasto promedio de un cliente VIP en un partido
+        2-Tabla de asistencia de los partidos
+        3-Partido con mayor asistencia
+        4-Partido con mayor boletos vendidos
+        5-Top 3 productos vendidos en el restaurante
+        6-Top 3 clientes
+        > """)
+        while option != '1' and option != '2' and option != '3' and option != '4' and option != '5' and option != '6':
+            option = input("Ingreso inválido, selecciona el número correspondiente a la estadística que deseas ver: ")
+        if option == '1':
+            self.gasto_promedio()
+        elif option == '2':
+            self.tabla_asistencia()
+        elif option == '3':
+            self.partido_mayor_asistencia()
+        elif option == '4':
+            self.partido_boletos_vendidos()
+        elif option == '5':
+            self.top_productos()
+        elif option == '6':
+            self.top_clientes()
+
+    def read(self):
+        """
+        Primero revisa si el archivo a leer existe, si el archivo no existe, lo crea
+        Si el archivo existe revisa si está o no está vacío, si está vacío no lee el archivo
+        Si el archivo no está vacio, hace pickle.load para leer el archvio y se iguala a la variable a sobreescribir
+        """
+        if os.path.exists('clientes.txt'):
+            if os.path.getsize('clientes.txt') != 0:
+                with open('clientes.txt', 'rb') as a:
+                    self.clientes = pickle.load(a)
+        else:
+            with open('clientes.txt', 'x'):
+                pass
+        
+        if os.path.exists('equipos.txt'):
+            if os.path.getsize('equipos.txt') != 0:
+                with open('equipos.txt', 'rb') as a:
+                    self.equipos = pickle.load(a)
+        else:
+            with open('equipos.txt', 'x'):
+                pass
+        
+        if os.path.exists('estadios.txt'):
+            if os.path.getsize('estadios.txt') != 0:
+                with open('estadios.txt', 'rb') as a:
+                    self.estadios = pickle.load(a)
+        else:
+            with open('estadios.txt', 'x'):
+                pass
+
+        if os.path.exists('partidos.txt'):
+            if os.path.getsize('partidos.txt') != 0:
+                with open('partidos.txt', 'rb') as a:
+                    self.partidos = pickle.load(a)
+        else:
+            with open('partidos.txt', 'x'):
+                pass
+        
+        if os.path.exists('codigos_usados.txt'):
+            if os.path.getsize('codigos_usados.txt') != 0:
+                with open('codigos_usados.txt', 'rb') as a:
+                    self.codigos_usados = pickle.load(a)
+        else:
+            with open('codigos_usados.txt', 'x'):
+                pass
+
+        if os.path.exists('codigos_ticket.txt'):
+            if os.path.getsize('codigos_ticket.txt') != 0:
+                with open('codigos_ticket.txt', 'rb') as a:
+                    self.codigos_ticket = pickle.load(a)
+        else:
+            with open('codigos_ticket.txt', 'x'):
+                pass
+
+    def write(self):
+        """
+        Guarda todos los datos hechas en las listas principales del programa en sus respectivos archivos txt
+        No se valida que el archivo exista porque eso sucede al inicio del programa
+        """
+        with open('clientes.txt', 'wb') as a:
+            pickle.dump(self.clientes, a)
+        with open('equipos.txt', 'wb') as a:
+            pickle.dump(self.equipos, a)
+        with open('estadios.txt', 'wb') as a:
+            pickle.dump(self.estadios, a)
+        with open('partidos.txt', 'wb') as a:
+            pickle.dump(self.partidos, a)
+        with open('codigos_usados.txt', 'wb') as a:
+            pickle.dump(self.codigos_usados, a)
+        with open('codigos_ticket.txt', 'wb') as a:
+            pickle.dump(self.codigos_ticket, a)
+
+    def start(self):       
+        self.read()
+        
         print("""
     --------------------------------------------------------------------------------------------------------------    
     [....          [.       [... [......      [.       [.......                                                   
@@ -572,5 +1018,6 @@ class App():
             elif opcion == '7':
                 self.download()
             else:
-                print("Hasta Luego!")
+                print("Hasta Luego!")              
+                self.write()
                 break

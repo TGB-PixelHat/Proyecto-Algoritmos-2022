@@ -13,5 +13,6 @@ class Bebida(Producto):
         print(f"""
         Nombre del producto: {self.nombre}
         Precio del producto: {self.precio + (self.precio * 0.16)}$
+        Cantidad del producto: {self.cantidad}
         Tipo de producto: {self.type}
         Tipo de Bebida: {self.adicional}""")

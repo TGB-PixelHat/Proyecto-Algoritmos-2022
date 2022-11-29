@@ -765,6 +765,15 @@ class App():
             else:
                 print("""
                         Ninguna""")
+            print()
+            print(f"\tRelación asistencia/venta: ")
+            if len(partido.asientos_tomados) > 0:
+                print(f"""
+                        {partido.asistencia//len(partido.asientos_tomados)}""")
+            else:
+                print("""
+                        Ninguna""")
+        partidos.clear()
 
     def partido_mayor_asistencia(self):
         """
@@ -832,22 +841,23 @@ class App():
                 print("Error!")
         
         for producto in restaurante.productos:
-            if len(top) < 3 and producto.vendido != 0:
+            if len(top) < 3 and producto.vendido > 0:
                 top.append(producto)
             elif len(top) == 3:
                 for item in top:
                     if producto.vendido > item.vendido:
                         item = producto
         
-        if len(top) != 0:
+        if len(top) != 0:            
+            print("\tEstos son el top de productos vendidos: ")
             for i, producto in enumerate(top):
-                print("\tEstos son el top de productos vendidos: ")
                 print(f"\t{i+1}")
                 print(f"""
                 Nombre del producto: {producto.nombre}
                 Cantidad vendida: {producto.vendido}""")
         else:
             print("No hay productos vendidos con los cuales hacer esta estadística")
+        top.clear()
 
     def top_clientes(self):
         """
